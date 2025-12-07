@@ -18,7 +18,7 @@ func Register(ctx *gin.Context){
 		return 
 	}
 
-	hashedPwd, err := utils.HashPassword((user.Password))
+	hashedPwd, err := utils.HashPassword(user.Password)
 
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError,gin.H{
