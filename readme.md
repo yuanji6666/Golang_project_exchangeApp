@@ -7,6 +7,7 @@
     /config 使用viper库自动处理配置文件
     /controllers 处理请求的相关业务
     /global 定义全局数据库
+    /middlewares 中间件
     /models 定义模型存储具体数据
     /router 注册URL路径（路由）
     /utils 工具函数实现

@@ -3,7 +3,6 @@ package router
 import (
 	"exchangeapp/controllers"
 	"exchangeapp/middlewares"
-
 	"github.com/gin-gonic/gin"
 )
 
