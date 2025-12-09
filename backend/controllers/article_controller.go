@@ -41,9 +41,15 @@ func GetArticles(ctx *gin.Context){
 	var articles []models.Article
 
 	if err := global.Db.Find(&articles).Error; err != nil{
+		if errors.Is(err, gorm.ErrRecordNotFound){
+			ctx.JSON(http.StatusNotExtended,gin.H{
+				"error" : err.Error(),
+			})
+		}else{
 		ctx.JSON(http.StatusInternalServerError,gin.H{
 			"error" : err.Error(),
 		})
+		}
 		return
 	}
 
@@ -59,13 +65,12 @@ func GetArticlesByID(ctx *gin.Context){
 			ctx.JSON(http.StatusNotFound, gin.H{
 				"error": err.Error(),
 			})
-			return
 		}else{
 			ctx.JSON(http.StatusInternalServerError,gin.H{
 				"error" : err.Error(),
 			})
-			return
 		}
+		return
 	}
 	ctx.JSON(http.StatusOK, article)
 }
