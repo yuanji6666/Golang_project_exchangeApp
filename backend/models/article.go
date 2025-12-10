@@ -4,8 +4,8 @@ import "gorm.io/gorm"
 
 type Article struct{
 	gorm.Model
-	Title string `json:"required"`
-	Content string`json:"required"`
-	Preview string`json:"required"`
+	Title string `binding:"required"`
+	Content string`binding:"required"`
+	Preview string`binding:"required"`
 	Likes int `gorm:"default:0"`
 }
