@@ -13,7 +13,7 @@ func Register(ctx *gin.Context){
 
 	if err := ctx.ShouldBindJSON(&user); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error" : err ,
+			"error" : err.Error() ,
 		})
 		return 
 	}
