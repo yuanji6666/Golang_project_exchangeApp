@@ -1,11 +1,14 @@
 package router
 
-import ("github.com/gin-gonic/gin"
+import (
 	"exchangeapp/controllers"
+
+	"github.com/gin-gonic/gin"
 )
 
-func registerUserRouter(r *gin.RouterGroup){
-	
-	r.POST("/login", controllers.Login)
-	r.POST("/register", controllers.Register)
+func registerUserRouter(r *gin.RouterGroup) {
+	ac := controllers.NewAuthController()
+
+	r.POST("/login", ac.Login)
+	r.POST("/register", ac.Register)
 }

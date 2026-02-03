@@ -6,7 +6,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func registerExchangeRatesRouter(r *gin.RouterGroup){
-	r.GET("/exchangeRates", controllers.GetExchangeRates)
-	r.POST("/exchangeRates", controllers.CreateExchangeRate)
+func registerExchangeRatesRouter(r *gin.RouterGroup) {
+	erc := controllers.NewExchangeRateController()
+
+	r.GET("/exchangeRates", erc.GetExchangeRates)
+	r.POST("/exchangeRates", erc.CreateExchangeRate)
+	r.GET("/exchangeRates/:id", erc.GetExchangeRateByID)
 }

@@ -1,59 +1,78 @@
 package controllers
 
 import (
-	"errors"
-	"exchangeapp/global"
+	"exchangeapp/dao"
 	"exchangeapp/models"
+	"exchangeapp/service"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
-func CreateExchangeRate(ctx *gin.Context){
+type ExchangeRateController struct {
+	exchangeRateService service.ExchangeRateService
+}
+
+func NewExchangeRateController() *ExchangeRateController {
+	exchangeRateDAO := dao.NewExchangeRateDAO()
+	exchangeRateService := service.NewExchangeRateService(exchangeRateDAO)
+	return &ExchangeRateController{
+		exchangeRateService: exchangeRateService,
+	}
+}
+
+func (erc *ExchangeRateController) CreateExchangeRate(ctx *gin.Context) {
 	var exchangeRate models.ExchangeRate
-	if err := ctx.ShouldBindJSON(&exchangeRate);err!=nil {
-		ctx.JSON(http.StatusBadRequest,gin.H{
-			"error" : err,
+
+	if err := ctx.ShouldBindJSON(&exchangeRate); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
 		})
 		return
 	}
 
 	exchangeRate.Date = time.Now()
 
-	if err := global.Db.AutoMigrate(&exchangeRate); err!= nil{
+	if err := erc.exchangeRateService.CreateExchangeRate(&exchangeRate); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error" : "a",
+			"error": err.Error(),
 		})
 		return
 	}
 
-	if err := global.Db.Create(&exchangeRate).Error; err!= nil{
-		ctx.JSON(http.StatusInternalServerError,gin.H{
-			"error" : "b",
-		})
-		return 
-	}
-
-	ctx.JSON(http.StatusOK,exchangeRate)
+	ctx.JSON(http.StatusCreated, exchangeRate)
 }
 
-func GetExchangeRates(ctx *gin.Context){
-	var exchangeRates []models.ExchangeRate
-
-	if err := global.Db.Find(&exchangeRates).Error;err!= nil {
-		if errors.Is(err,gorm.ErrRecordNotFound){
-			ctx.JSON(http.StatusNotFound,gin.H{
-				"error" : err.Error(),
-			})
-		}else{
+func (erc *ExchangeRateController) GetExchangeRates(ctx *gin.Context) {
+	exchangeRates, err := erc.exchangeRateService.GetExchangeRates()
+	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"error" : err.Error(),
+			"error": err.Error(),
 		})
-		}
-
 		return
 	}
+
 	ctx.JSON(http.StatusOK, exchangeRates)
+}
+
+func (erc *ExchangeRateController) GetExchangeRateByID(ctx *gin.Context) {
+	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": "无效的ID",
+		})
+		return
+	}
+
+	exchangeRate, err := erc.exchangeRateService.GetExchangeRateByID(uint(id))
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, exchangeRate)
 }

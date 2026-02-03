@@ -1,117 +1,107 @@
 package controllers
 
 import (
-	"encoding/json"
-	"errors"
-	"exchangeapp/global"
+	"exchangeapp/dao"
 	"exchangeapp/models"
+	"exchangeapp/service"
 	"net/http"
-	"time"
+	"strconv"
+
 	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis"
-	"gorm.io/gorm"
 )
 
-var cacheKey = "articles"
+type ArticleController struct {
+	articleService service.ArticleService
+	likeService    service.LikeService
+}
 
-func CreateArticle(ctx *gin.Context){
+func NewArticleController() *ArticleController {
+	articleDAO := dao.NewArticleDAO()
+	likeDAO := dao.NewLikeDAO()
+	articleService := service.NewArticleService(articleDAO, likeDAO)
+	likeService := service.NewLikeService(likeDAO)
+
+	return &ArticleController{
+		articleService: articleService,
+		likeService:    likeService,
+	}
+}
+
+func (ac *ArticleController) CreateArticle(ctx *gin.Context) {
 	var article models.Article
 
 	if err := ctx.ShouldBindJSON(&article); err != nil {
-		ctx.JSON(http.StatusBadRequest,gin.H{
-			"error" : err ,
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
 		})
 		return
 	}
 
-	if err := global.Db.AutoMigrate(&article);err != nil {
-		ctx.JSON(http.StatusInternalServerError,gin.H{
-			"error" : err ,
+	if err := ac.articleService.CreateArticle(&article); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
 		})
 		return
 	}
 
-	if err := global.Db.Create(&article).Error; err != nil {
-		ctx.JSON(http.StatusInternalServerError,gin.H{
-			"error" : err ,
-		})
-		return
-	}
-
-	if err := global.RedisDb.Del(cacheKey).Err();err!=nil{
-		ctx.JSON(http.StatusInternalServerError,gin.H{
-			"error" : err ,
-		})
-		return
-	}
-
-	ctx.JSON(http.StatusCreated, article )
+	ctx.JSON(http.StatusCreated, article)
 }
 
-func GetArticles(ctx *gin.Context){
-
-	cachedData, err := global.RedisDb.Get(cacheKey).Result()
-
-	if err == redis.Nil {
-		var articles []models.Article
-
-		if err := global.Db.Find(&articles).Error; err != nil{
-			if errors.Is(err, gorm.ErrRecordNotFound){
-				ctx.JSON(http.StatusNotExtended,gin.H{
-					"error" : err.Error(),
-				})
-			}else{
-			ctx.JSON(http.StatusInternalServerError,gin.H{
-				"error" : err.Error(),
-			})
-			}
-			return
-		}
-
-		articlesJSON, err := json.Marshal(articles)
-
-		if err != nil {
-			ctx.JSON(http.StatusInternalServerError,gin.H{"error": err.Error()})
-			return
-		}
-
-		if err := global.RedisDb.Set(cacheKey,articlesJSON,10*time.Minute).Err();err != nil{
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error":err.Error()})
-			return
-		}
-
-		ctx.JSON(http.StatusOK, articles)
-		
-	}else if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error":err.Error()})
-		return
-	}else{
-		var articles []models.Article
-		if err := json.Unmarshal([]byte(cachedData),&articles); err != nil{
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error":err.Error()})
-			return
-		}
-
-		ctx.JSON(http.StatusOK, articles)
-
-}
-}
-
-func GetArticlesByID(ctx *gin.Context){
-	id :=ctx.Param("id")
-	var article models.Article
-
-	if err := global.Db.Where("id=?",id).First(&article).Error; err!= nil {
-		if errors.Is(err, gorm.ErrRecordNotFound){
-			ctx.JSON(http.StatusNotFound, gin.H{
-				"error": err.Error(),
-			})
-		}else{
-			ctx.JSON(http.StatusInternalServerError,gin.H{
-				"error" : err.Error(),
-			})
-		}
+func (ac *ArticleController) GetArticles(ctx *gin.Context) {
+	articles, err := ac.articleService.GetArticles()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
 		return
 	}
+
+	ctx.JSON(http.StatusOK, articles)
+}
+
+func (ac *ArticleController) GetArticleByID(ctx *gin.Context) {
+	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"error": "无效的ID",
+		})
+		return
+	}
+
+	article, err := ac.articleService.GetArticleByID(uint(id))
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
 	ctx.JSON(http.StatusOK, article)
+}
+
+func (ac *ArticleController) LikeArticle(ctx *gin.Context) {
+	articleID := ctx.Param("id")
+
+	if err := ac.likeService.LikeArticle(articleID); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "成功点赞"})
+}
+
+func (ac *ArticleController) GetArticleLikes(ctx *gin.Context) {
+	articleID := ctx.Param("id")
+
+	likes, err := ac.likeService.GetArticleLikes(articleID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"likes": likes})
 }
